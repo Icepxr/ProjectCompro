@@ -99,7 +99,7 @@ int Checker::tryToMoveToPosition(int x, int y, std::vector<Checker>& listChecker
 
             switch (team) {
             case Team::red:
-                if (posY == 11)
+                if (posY == 9)
                     isAKing = true;
                 break;
             
@@ -189,8 +189,7 @@ int Checker::checkHowFarCanMoveInDirection(int xDirection, int yDirection, std::
             int y = posY + yDirection;
 
             //Ensure that the position is within the bounds of the game board (a square minus the four coners).
-            if (x > -1 && x < 10 && y > -1 && y < 10 &&
-                (x < 3 && y < 3) == false && (x >= 9 && y < 3) == false && (x < 3 && y >= 9) == false && (x >= 9 && y >= 9) == false) {
+            if (x > -1 && x < 10 && y > -1 && y < 10) {
 
                 //Try to find another checker in the specified position and determine how far this checker can move based on that information.
                 Checker* checkerSelected = findCheckerAtPosition(x, y, listCheckers);
@@ -201,8 +200,7 @@ int Checker::checkHowFarCanMoveInDirection(int xDirection, int yDirection, std::
                     x = posX + xDirection * 2;
                     y = posY + yDirection * 2;
 
-                    if (x > -1 && x < 10 && y > -1 && y < 10 &&
-                        (x < 3 && y < 3) == false && (x >= 9 && y < 3) == false && (x < 3 && y >= 9) == false && (x >= 9 && y >= 9) == false) {
+                    if (x > -1 && x < 10 && y > -1 && y < 10 ) {
                         checkerSelected = findCheckerAtPosition(x, y, listCheckers);
                         if (checkerSelected == nullptr)
                             return 2;
