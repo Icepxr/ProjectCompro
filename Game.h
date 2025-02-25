@@ -42,6 +42,7 @@ private:
 	SDL_Texture* textureTeamRedWon = nullptr, * textureTeamGreenWon = nullptr,
 		* textureTeamBlueWon = nullptr, * textureTeamYellowWon = nullptr;
 
+
 	//The size of each squares on the board in pixels.
 	const int squareSizePixels;
 };
