@@ -9,12 +9,10 @@ std::vector<SDL_Texture*> TextureLoader::listTexturesLoaded;
 
 
 SDL_Texture* TextureLoader::loadTexture(std::string filename, SDL_Renderer* renderer) {
-    //Setup the relative filepath to the images folder using the input filename.
-    //std::string filepath = "S:\Project\4 Player Checkers v1.0.0\Data\Images/"+ filename;
-    // std::string filepath = "S:/Project/4 Player Checkers v1.0.0/Data/Images/" + filename;
+   
     std::string filepath = "S:/Game/Project2/Images/" + filename;
 
-    //"S:\Project\4 Player Checkers v1.0.0\Data"
+   
 
     //Try to create a surface using the filepath.
     SDL_Surface* surfaceTemp = SDL_LoadBMP(filepath.c_str());
@@ -45,6 +43,7 @@ void TextureLoader::deallocateTextures() {
     while (listTexturesLoaded.size() > 0) {
         if (listTexturesLoaded[0] != nullptr)
             SDL_DestroyTexture(listTexturesLoaded[0]);
+            
 
         listTexturesLoaded.erase(listTexturesLoaded.begin());
     }
