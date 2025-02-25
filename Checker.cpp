@@ -99,12 +99,12 @@ int Checker::tryToMoveToPosition(int x, int y, std::vector<Checker>& listChecker
 
             switch (team) {
             case Team::red:
-                if (posY == 9)
+                if (posY == 2)
                     isAKing = true;
                 break;
             
             case Team::blue:
-                if (posY == 0)
+                if (posY == 7)
                     isAKing = true;
                 break;
             }
