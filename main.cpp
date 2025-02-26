@@ -1,5 +1,6 @@
 #include <iostream>
 #include "SDL2/SDL.h"
+#include <cstdlib>
 
 #include "Game.h"
 
@@ -39,7 +40,11 @@ int main(int argc, char* args[]) {
 				std::cout << "Renderer = " << rendererInfo.name << std::endl;
 
 				//Start the game.
+				srand(time(0));
+
+			
 				Game game(window, renderer, boardSize);
+				
 
 				//Clean up.
 				SDL_DestroyRenderer(renderer);
