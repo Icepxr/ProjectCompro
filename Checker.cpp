@@ -1,8 +1,14 @@
-#include "Checker.h"
+﻿#include "Checker.h"
+#include  <cstdlib>
+#include <iostream>
+
+using namespace std;
+
+
 
 
 SDL_Texture* Checker::textureRedKing = nullptr, * Checker::textureRedRegular = nullptr,
-* Checker::textureBlueKing = nullptr, * Checker::textureBlueRegular = nullptr;
+* Checker::textureBlueKing = nullptr, * Checker::textureBlueRegular = nullptr,* Checker::TokenR_instantKing=nullptr, * Checker::TokenB_instantKing = nullptr;
 
 
 
@@ -23,13 +29,15 @@ void Checker::loadTextures(SDL_Renderer* renderer) {
     textureBlueKing = TextureLoader::loadTexture("Checker Blue King.bmp", renderer);
     textureBlueRegular = TextureLoader::loadTexture("Checker Blue Regular.bmp", renderer);
 
-   
+	TokenR_instantKing = TextureLoader::loadTexture("king_token_red.bmp", renderer);
+	TokenB_instantKing = TextureLoader::loadTexture("king_token_blue.bmp", renderer);
 }
-
+    
 
 
 void Checker::draw(SDL_Renderer* renderer, int squareSizePixels) {
     draw(renderer, squareSizePixels, posX, posY);
+
 }
 
 
@@ -52,6 +60,7 @@ void Checker::drawPossibleMoves(SDL_Renderer* renderer, int squareSizePixels, st
     distance = checkHowFarCanMoveInDirection(-1, -1, listCheckers);
     if (distance > 0 && (canOnlyMove2Squares == false || distance == 2))
         draw(renderer, squareSizePixels, posX - distance, posY - distance, true);
+
 }
 
 
@@ -65,13 +74,24 @@ int Checker::checkHowFarCanMoveInAnyDirection(std::vector<Checker>& listCheckers
 
 
 
-int Checker::tryToMoveToPosition(int x, int y, std::vector<Checker>& listCheckers, int& indexCheckerErase, bool canOnlyMove2Squares) {
+int Checker::tryToMoveToPosition(int x, int y,vector<Checker>& listCheckers, int& indexCheckerErase, bool canOnlyMove2Squares) {
     //Attempt to move to the input position if possible.  Flag a checker to be removed and/or turn this one into a king if required.
+    
+    int xDirection;
+    if ((x - posX) > 0) {
+        xDirection = 1;
+    } else {
+        xDirection = -1;
+    }
 
-    int xDirection = ((x - posX) > 0 ? 1 : -1);
-    int yDirection = ((y - posY) > 0 ? 1 : -1);
+    int yDirection;
+    if ((y - posY) > 0) {
+        yDirection = 1;
+    } else {
+        yDirection = -1;
+    }
 
-    int distance = checkHowFarCanMoveInDirection(xDirection, yDirection, listCheckers);
+    int distance = checkHowFarCanMoveInDirection(xDirection, yDirection, listCheckers); //จะตรวจสอบว่าหมากสามารถเคลื่อนที่ในทิศทางที่คำนวณไว้ได้ไกลแค่ไหน (1 หรือ 2 ก้าว).
     if (distance > 0 && (canOnlyMove2Squares == false || distance == 2)) {
         int xMovable = posX + xDirection * distance;
         int yMovable = posY + yDirection * distance;
@@ -86,7 +106,7 @@ int Checker::tryToMoveToPosition(int x, int y, std::vector<Checker>& listChecker
                 bool checkerFound = false;
                 for (int count = 0; count < listCheckers.size() && checkerFound == false; count++) {
                     Checker& checkerSelected = listCheckers[count];
-                    if (checkerSelected.posX == xRemove && checkerSelected.posY == yRemove) {
+                    if (checkerSelected.posX == xRemove && checkerSelected.posY == yRemove && checkerSelected.getTeam() != Checker::Team::Token_king_red && checkerSelected.getTeam() != Checker::Team::Token_king_blue) {
                         indexCheckerErase = count;
                         checkerFound = true;
                     }
@@ -97,25 +117,78 @@ int Checker::tryToMoveToPosition(int x, int y, std::vector<Checker>& listChecker
             posX = xMovable;
             posY = yMovable;
 
+			
+
             switch (team) {
             case Team::red:
-                if (posY == 2)
+                if (posY == 9)
                     isAKing = true;
                 break;
             
             case Team::blue:
-                if (posY == 7)
+                if (posY == 0 )
                     isAKing = true;
                 break;
             }
-
-            return distance;
+			position_token_king(posX, posY, listCheckers);
+			return distance; //1 เดินปกติ,2 กินหมาก
         }
     }
-
+	position_token_king(posX, posY, listCheckers);
     return 0;
 }
 
+
+
+
+void Checker::position_token_king(int posX, int posY, vector<Checker>& listCheckers) {
+    int instant_king_Redpoint = 0;
+    int instant_king_Bluepoint = 0;
+    for (int i = 0; i < listCheckers.size(); i++) {
+        if (listCheckers[i].getTeam() == Checker::Team::Token_king_red) {
+            if (listCheckers[i].getPosY() == 4) {
+                instant_king_Redpoint = listCheckers[i].getPosX();
+            }
+            
+        }
+        if (listCheckers[i].getTeam() == Checker::Team::Token_king_blue) {
+            if (listCheckers[i].getPosY() == 5) {
+                instant_king_Bluepoint = listCheckers[i].getPosX();
+            }
+        }
+    }
+    // got x,y of token king
+    for (int i = 0; i < listCheckers.size(); i++) {
+
+        if (listCheckers[i].getPosY() == 4) {
+            if (listCheckers[i].getPosX() == instant_king_Redpoint) {
+
+                if (listCheckers[i].getTeam() == Checker::Team::red) {
+                    isAKing = true;
+					for (int i = 0; i < listCheckers.size(); i++) {
+						if (listCheckers[i].getPosX() == instant_king_Redpoint && listCheckers[i].getPosY() == 4&&listCheckers[i].getTeam() == Checker::Team::Token_king_red) {
+							listCheckers.erase(listCheckers.begin() + i);
+						}
+					}
+                }
+            }    
+        } 
+        if (listCheckers[i].getPosY() == 5) {
+            if (listCheckers[i].getPosX() == instant_king_Bluepoint) {
+
+                if (listCheckers[i].getTeam() == Checker::Team::blue) {
+                    isAKing = true;
+                    for (int i = 0; i < listCheckers.size(); i++) {
+                        if (listCheckers[i].getPosX() == instant_king_Bluepoint && listCheckers[i].getPosY() == 5 && listCheckers[i].getTeam() == Checker::Team::Token_king_blue) {
+                            listCheckers.erase(listCheckers.begin() + i);
+                        }
+                    }
+                }
+                
+            }
+        }    
+    }
+}
 
 
 int Checker::getPosX() {
@@ -148,6 +221,12 @@ void Checker::draw(SDL_Renderer* renderer, int squareSizePixels, int x, int y, b
         textureDrawSelected = (isAKing ? textureBlueKing : textureBlueRegular);
         break;
    
+	case Team::Token_king_red:
+		textureDrawSelected = TokenR_instantKing;
+		break;
+	case Team::Token_king_blue:
+		textureDrawSelected = TokenB_instantKing;
+		break;
     }
 
 
@@ -168,11 +247,7 @@ void Checker::draw(SDL_Renderer* renderer, int squareSizePixels, int x, int y, b
         squareSizePixels,
         squareSizePixels
         };
-        /*SDL_Rect rect = {
-            (x + 1) * squareSizePixels,
-            (y + 1) * squareSizePixels,
-            squareSizePixels,
-            squareSizePixels };*/
+        
 
         SDL_RenderCopy(renderer, textureDrawSelected, NULL, &rect);
     }
@@ -181,10 +256,30 @@ void Checker::draw(SDL_Renderer* renderer, int squareSizePixels, int x, int y, b
 
 
 int Checker::checkHowFarCanMoveInDirection(int xDirection, int yDirection, std::vector<Checker>& listCheckers) {
-    if (abs(xDirection) == 1 && abs(yDirection) == 1) {
 
+    if (abs(xDirection) == 1 && abs(yDirection) == 1) {
+		if (isAKing) {
+			int x = posX + xDirection;
+			int y = posY + yDirection;
+			//Ensure that the position is within the bounds of the game board (a square minus the four coners).
+			if (x > -1 && x < 10 && y > -1 && y < 10) {
+				Checker* checkerSelected = findCheckerAtPosition(x, y, listCheckers);
+				if (checkerSelected == nullptr)
+					return 1;
+				else if (checkerSelected->team != team) {
+					x = posX + xDirection * 2;
+					y = posY + yDirection * 2;
+					if (x > -1 && x < 10 && y > -1 && y < 10) {
+						checkerSelected = findCheckerAtPosition(x, y, listCheckers);
+						if (checkerSelected == nullptr)
+							return 2;
+					}
+				}
+			}
+
+        }
         //Ensure that this checker can move in the input direction either because it's a king or based on the direction that it's team allows.
-        if (isAKing || (team == Team::red && yDirection > 0) ||(team == Team::blue && yDirection < 0) ) {
+        if ((team == Team::red && yDirection > 0) ||(team == Team::blue && yDirection < 0) ) {
             int x = posX + xDirection;
             int y = posY + yDirection;
 
@@ -217,8 +312,9 @@ int Checker::checkHowFarCanMoveInDirection(int xDirection, int yDirection, std::
 
 Checker* Checker::findCheckerAtPosition(int x, int y, std::vector<Checker>& listCheckers) {
     for (auto& checkerSelected : listCheckers)
-        if (checkerSelected.posX == x && checkerSelected.posY == y)
+        if (checkerSelected.posX == x && checkerSelected.posY == y&&checkerSelected.getTeam() != Checker::Team::Token_king_red&& checkerSelected.getTeam() != Checker::Team::Token_king_blue)
             return &checkerSelected;
 
     return nullptr;
 }
+
