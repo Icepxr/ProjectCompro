@@ -33,7 +33,7 @@ public:
     Team getTeam();
 
 private:
-    void draw(SDL_Renderer* renderer, int squareSizePixels, int x, int y, bool drawTransparent = false);
+    void draw   (SDL_Renderer* renderer, int squareSizePixels, int x, int y, bool drawTransparent = false);
     int checkHowFarCanMoveInDirection(int xDirection, int yDirection, std::vector<Checker>& listCheckers);
     Checker* findCheckerAtPosition(int x, int y, std::vector<Checker>& listCheckers);
     int posX, posY;
