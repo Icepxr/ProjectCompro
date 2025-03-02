@@ -31,8 +31,11 @@ public:
     //void instant_king(int posX, int posY);
 
     Team getTeam();
+    static void resetCurrentMoveDirection();
+    bool canCaptureInAnyDirection(std::vector<Checker>& listCheckers); //newly added
 
 private:
+    bool willCaptureInPath(int startX, int startY, int endX, int endY, int xDir, int yDir, std::vector<Checker>& listCheckers);
     void draw   (SDL_Renderer* renderer, int squareSizePixels, int x, int y, bool drawTransparent = false);
     int checkHowFarCanMoveInDirection(int xDirection, int yDirection, std::vector<Checker>& listCheckers);
     Checker* findCheckerAtPosition(int x, int y, std::vector<Checker>& listCheckers);
@@ -43,4 +46,5 @@ private:
 
     static SDL_Texture* textureRedKing, * textureRedRegular,
         * textureBlueKing, * textureBlueRegular, * TokenR_instantKing, * TokenB_instantKing, * Portal;
-};
+    static int currentMoveDirection; // 0=none, 1=downRight, 2=downLeft, 3=upRight, 4=upLeft
+};  

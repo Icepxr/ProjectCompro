@@ -1,6 +1,7 @@
 ﻿#include "Checker.h"
 #include  <cstdlib>
 #include <iostream>
+#include <algorithm>
 
 using namespace std;
 
@@ -15,7 +16,8 @@ SDL_Texture* Checker::textureRedKing = nullptr, * Checker::textureRedRegular = n
 
 
 Checker::Checker(int setPosX, int setPosY, Team setTeam) :
-	posX(setPosX), posY(setPosY), team(setTeam) {
+	posX(setPosX), posY(setPosY), team(setTeam),isAKing(false) {
+
 }
 
 
@@ -37,7 +39,7 @@ void Checker::loadTextures(SDL_Renderer* renderer) {
 
 
 void Checker::draw(SDL_Renderer* renderer, int squareSizePixels) {
-    draw(renderer, squareSizePixels, posX, posY);
+    draw(renderer, squareSizePixels, posX, posY,false);
 
 }
 
@@ -46,23 +48,67 @@ void Checker::draw(SDL_Renderer* renderer, int squareSizePixels) {
 void Checker::drawPossibleMoves(SDL_Renderer* renderer, int squareSizePixels, std::vector<Checker>& listCheckers, bool canOnlyMove2Squares) {
     //Check how far this checker can move in the four diagional directions and draw a transparent preview in each spot if required.
     //If it canOnlyMove2Squares with this move then only draw the directions that allow it to do so.
-    int distance = checkHowFarCanMoveInDirection(1, 1, listCheckers);
-    if (distance > 0 && (canOnlyMove2Squares == false || distance == 2))
-        draw(renderer, squareSizePixels, posX + distance, posY + distance, true);
+    for (int xDir : {-1, 1}) {
+        for (int yDir : {-1, 1}) {
+            int maxDistance = checkHowFarCanMoveInDirection(xDir, yDir, listCheckers);
 
-    distance = checkHowFarCanMoveInDirection(1, -1, listCheckers);
-    if (distance > 0 && (canOnlyMove2Squares == false || distance == 2))
-        draw(renderer, squareSizePixels, posX + distance, posY - distance, true);
+            if (maxDistance > 0) {
+                if (isAKing) {
+                    // For kings, draw all valid positions along the diagonal
+                    for (int dist = 1; dist <= maxDistance; dist++) {
+                        int newX = posX + (xDir * dist);
+                        int newY = posY + (yDir * dist);
 
-    distance = checkHowFarCanMoveInDirection(-1, 1, listCheckers);
-    if (distance > 0 && (canOnlyMove2Squares == false || distance == 2))
-        draw(renderer, squareSizePixels, posX - distance, posY + distance, true);
-
-    distance = checkHowFarCanMoveInDirection(-1, -1, listCheckers);
-    if (distance > 0 && (canOnlyMove2Squares == false || distance == 2))
-        draw(renderer, squareSizePixels, posX - distance, posY - distance, true);
-
+                        // If in capture-only mode, only show positions that result in captures
+                        if (!canOnlyMove2Squares ||
+                            willCaptureInPath(posX, posY, newX, newY, xDir, yDir, listCheckers)) {
+                            draw(renderer, squareSizePixels, newX, newY, true);
+                        }
+                    }
+                }
+                else {
+                    // For regular pieces, just show the maximum valid move
+                    if (!canOnlyMove2Squares || maxDistance == 2) {
+                        draw(renderer, squareSizePixels, posX + (xDir * maxDistance),
+                            posY + (yDir * maxDistance), true);
+                    }
+                }
+            }
+        }
+    }
 }
+
+
+bool Checker::willCaptureInPath(int startX, int startY, int endX, int endY,
+    int xDir, int yDir, std::vector<Checker>& listCheckers) {
+    int x = startX;
+    int y = startY;
+    bool foundOpponent = false;
+
+    while (x != endX || y != endY) {
+        x += xDir;
+        y += yDir;
+
+        Checker* checkerSelected = findCheckerAtPosition(x, y, listCheckers);
+        if (checkerSelected) {
+            if (checkerSelected->team != team) {
+                // Found an opponent piece
+                foundOpponent = true;
+            }
+            else {
+                // Found a friendly piece - can't move through it
+                return false;
+            }
+        }
+        else if (foundOpponent) {
+            // Found an empty square after an opponent - this is a capture
+            return true;
+        }
+    }
+
+    return false;
+}
+
 
 
 
@@ -75,68 +121,102 @@ int Checker::checkHowFarCanMoveInAnyDirection(std::vector<Checker>& listCheckers
 
 
 
-int Checker::tryToMoveToPosition(int x, int y,vector<Checker>& listCheckers, int& indexCheckerErase, bool canOnlyMove2Squares) {
-    //Attempt to move to the input position if possible.  Flag a checker to be removed and/or turn this one into a king if required.
+int Checker::tryToMoveToPosition(int x, int y, std::vector<Checker>& listCheckers, int& indexCheckerErase, bool canOnlyMove2Squares) {
+    if (x == posX && y == posY) {
+		position_token(posX, posY, listCheckers);
+        return 0; // Prevent self-move
+    } 
+
+    int xDirection = (x > posX) ? 1 : -1;
+    int yDirection = (y > posY) ? 1 : -1;
+    int xDistance = abs(x - posX);
+    int yDistance = abs(y - posY);
+
+    // Ensure movement is diagonal
+    if (xDistance != yDistance) {
+        position_token(posX, posY, listCheckers);
+        return 0;
+    } 
+
+    int maxAllowedDistance = checkHowFarCanMoveInDirection(xDirection, yDirection, listCheckers);
+
+    // Check if the move is within allowed distance
+    if (maxAllowedDistance <= 0 || xDistance > maxAllowedDistance) { 
+        position_token(posX, posY, listCheckers);
+        return 0;
+    }
+
+    // If in capture-only mode, ensure we're making a capture
+    if (canOnlyMove2Squares) {
+        bool willCapture = willCaptureInPath(posX, posY, x, y, xDirection, yDirection, listCheckers);
+        if (!willCapture) { 
+            position_token(posX, posY, listCheckers);
+
+            return 0; 
+        }
     
-    int xDirection;
-    if ((x - posX) > 0) {
-        xDirection = 1;
-    } else {
-        xDirection = -1;
     }
 
-    int yDirection;
-    if ((y - posY) > 0) {
-        yDirection = 1;
-    } else {
-        yDirection = -1;
-    }
+    int xMovable = posX;
+    int yMovable = posY;
+    bool jumpedOverPiece = false;
 
-    int distance = checkHowFarCanMoveInDirection(xDirection, yDirection, listCheckers); //จะตรวจสอบว่าหมากสามารถเคลื่อนที่ในทิศทางที่คำนวณไว้ได้ไกลแค่ไหน (1 หรือ 2 ก้าว).
-    if (distance > 0 && (canOnlyMove2Squares == false || distance == 2)) {
-        int xMovable = posX + xDirection * distance;
-        int yMovable = posY + yDirection * distance;
+    // Check the path for obstacles and captures
+    while (xMovable != x || yMovable != y) {
+        xMovable += xDirection;
+        yMovable += yDirection;
 
-        //Ensure that (xMovable, yMovable) is the input position (x, y).  Note that it might just be in it's direction.
-        if (xMovable == x && yMovable == y) {
-            //If it's moving a distance of two then set indexCheckerErase to the checker that's being jumped over.
-            if (distance == 2) {
-                int xRemove = posX + xDirection;
-                int yRemove = posY + yDirection;
+        Checker* checkerSelected = findCheckerAtPosition(xMovable, yMovable, listCheckers);
+        if (checkerSelected) {
+            if (checkerSelected->team != team) {
+                if (jumpedOverPiece) {
+                    position_token(posX, posY, listCheckers);
+                    return 0; // Can't jump over multiple pieces in a single move
+				}
+                // Found opponent's piece - check next position
+                int nextX = xMovable + xDirection;
+                int nextY = yMovable + yDirection;
 
-                bool checkerFound = false;
-                for (int count = 0; count < listCheckers.size() && checkerFound == false; count++) {
-                    Checker& checkerSelected = listCheckers[count];
-                    if (checkerSelected.posX == xRemove && checkerSelected.posY == yRemove && checkerSelected.getTeam() != Checker::Team::Token_king_red && checkerSelected.getTeam() != Checker::Team::Token_king_blue && checkerSelected.getTeam() != Checker::Team::Portal) {
-                        indexCheckerErase = count;
-                        checkerFound = true;
-                    }
+                // Make sure we're not going beyond the target position
+                if ((xDirection > 0 && nextX > x) || (xDirection < 0 && nextX < x) ||
+                    (yDirection > 0 && nextY > y) || (yDirection < 0 && nextY < y)) {
+                    position_token(posX, posY, listCheckers);
+                    return 0; // Would go past the target
+                }
+
+                // Ensure the landing square is valid
+                if (findCheckerAtPosition(nextX, nextY, listCheckers) == nullptr) {
+                    jumpedOverPiece = true;
+                    indexCheckerErase = std::distance(listCheckers.begin(), std::find_if(listCheckers.begin(), listCheckers.end(), [xMovable, yMovable](Checker& c) {
+                        return c.posX == xMovable && c.posY == yMovable;
+                    }));
+                    position_token(posX, posY, listCheckers);
+                }
+                else {
+                    position_token(posX, posY, listCheckers);
+
+                    return 0; // Can't jump if landing square is occupied
                 }
             }
+            else {
+                position_token(posX, posY, listCheckers);
 
-            //Update the position of this checker and make it a king if needed.
-            posX = xMovable;
-            posY = yMovable;
-
-			
-
-            switch (team) {
-            case Team::red:
-                if (posY == 9)
-                    isAKing = true;
-                break;
-            
-            case Team::blue:
-                if (posY == 0 )
-                    isAKing = true;
-                break;
+                return 0; // Blocked by friendly piece
             }
-			position_token(posX, posY, listCheckers);
-			return distance; //1 เดินปกติ,2 กินหมาก
         }
     }
-	position_token(posX, posY, listCheckers);
-    return 0;
+
+    // Move the checker
+    posX = x;
+    posY = y;
+
+    // If the checker reaches the promotion row, promote it to a king
+    if ((team == Team::red && posY == 9) || (team == Team::blue && posY == 0)) {
+        isAKing = true;
+    }
+    position_token(posX, posY, listCheckers);
+    // Return 2 if we jumped over a piece, otherwise return the distance
+    return jumpedOverPiece ? 2 : xDistance;
 }
 
 
@@ -178,6 +258,7 @@ void Checker::position_token(int posX, int posY, vector<Checker>& listCheckers) 
 					for (int i = 0; i < listCheckers.size(); i++) {
 						if (listCheckers[i].getPosX() == instant_king_Redpoint && listCheckers[i].getPosY() == 4 && listCheckers[i].getTeam() == Checker::Team::Token_king_red) {
 							listCheckers.erase(listCheckers.begin() + i);
+
 						}
 					}
                 }
@@ -204,15 +285,9 @@ void Checker::position_token(int posX, int posY, vector<Checker>& listCheckers) 
         if (listCheckers[i].getPosY() >= 3 && listCheckers[i].getPosY() <= 6) {
             if (listCheckers[i].getPosX() == portal_pointX && listCheckers[i].getPosY() == portal_pointY && (listCheckers[i].getTeam() == Checker::Team::red || listCheckers[i].getTeam() == Checker::Team::blue)) {
 
-                for (int i = 0; i < listCheckers.size(); i++) {
-                    if (listCheckers[i].getPosX() == portal_pointX && listCheckers[i].getPosY() == portal_pointY && listCheckers[i].getTeam() == Checker::Team::Portal) {
-                        listCheckers.erase(listCheckers.begin() + i);
-                    }
-                }
-                int portal_pointX = rand() % 10;
-
-                int portal_pointY = rand() % 10;
-
+                
+				portal_pointX = rand() % 10;
+				portal_pointY = rand() % 10;
                 while (((portal_pointX + portal_pointY) % 2 != 0) || (portal_pointY < 3 || portal_pointY>6) || ((portal_pointX == instant_king_Bluepoint && portal_pointY == 5)) || (portal_pointX == instant_king_Redpoint && portal_pointY == 4)&&listCheckers[i].getPosX()==portal_pointX && listCheckers[i].getPosY()==portal_pointY) {
                     portal_pointX = rand() % 10;
                     portal_pointY = rand() % 10;
@@ -223,10 +298,17 @@ void Checker::position_token(int posX, int posY, vector<Checker>& listCheckers) 
                 if (listCheckers[i].getTeam() == Checker::Team::red) {
                     listCheckers.push_back(Checker(portal_pointX, portal_pointY, Checker::Team::red));
                 }
-                else if (listCheckers[i].getTeam() == Checker::Team::blue){
+                if (listCheckers[i].getTeam() == Checker::Team::blue){
                         listCheckers.push_back(Checker(portal_pointX, portal_pointY, Checker::Team::blue));
                 }
                 listCheckers.erase(listCheckers.begin() + i);
+
+                for (int j = 0; j < listCheckers.size(); j++) {
+                    if (listCheckers[j].getTeam() == Checker::Team::Portal) {
+                        listCheckers.erase(listCheckers.begin() + j);
+                    }
+
+                }
 
 
             }
@@ -279,11 +361,12 @@ void Checker::draw(SDL_Renderer* renderer, int squareSizePixels, int x, int y, b
 
     //If a texture has been selected then draw it at the correct position.
 
-    if (textureDrawSelected != nullptr) {
-        if (drawTransparent)
-            SDL_SetTextureAlphaMod(textureDrawSelected, 128);
-        else
-            SDL_SetTextureAlphaMod(textureDrawSelected, 255);
+    if (textureDrawSelected) {
+       if (drawTransparent) {
+           SDL_SetTextureAlphaMod(textureDrawSelected, 128);
+       } else {
+           SDL_SetTextureAlphaMod(textureDrawSelected, 255);
+       }
 
         
         int offsetX = 192; // Example offset for the board
@@ -297,6 +380,9 @@ void Checker::draw(SDL_Renderer* renderer, int squareSizePixels, int x, int y, b
         
 
         SDL_RenderCopy(renderer, textureDrawSelected, NULL, &rect);
+        if (drawTransparent) {
+            SDL_SetTextureAlphaMod(textureDrawSelected, 255);
+        }
     }
 }
 
@@ -304,55 +390,117 @@ void Checker::draw(SDL_Renderer* renderer, int squareSizePixels, int x, int y, b
 
 int Checker::checkHowFarCanMoveInDirection(int xDirection, int yDirection, std::vector<Checker>& listCheckers) {
 
-    if (abs(xDirection) == 1 && abs(yDirection) == 1) {
-		if (isAKing) {
-			int x = posX + xDirection;
-			int y = posY + yDirection;
-			//Ensure that the position is within the bounds of the game board (a square minus the four coners).
-			if (x > -1 && x < 10 && y > -1 && y < 10) {
-				Checker* checkerSelected = findCheckerAtPosition(x, y, listCheckers);
-				if (checkerSelected == nullptr)
-					return 1;
-				else if (checkerSelected->team != team) {
-					x = posX + xDirection * 2;
-					y = posY + yDirection * 2;
-					if (x > -1 && x < 10 && y > -1 && y < 10) {
-						checkerSelected = findCheckerAtPosition(x, y, listCheckers);
-						if (checkerSelected == nullptr)
-							return 2;
-					}
-				}
-			}
+    if (abs(xDirection) != 1 || abs(yDirection) != 1) return 0;
 
+    // Regular checkers can only move forward based on their team
+    if (!isAKing && ((team == Team::red && yDirection < 0) || (team == Team::blue && yDirection > 0)))
+        return 0;
+
+    int x = posX + xDirection;
+    int y = posY + yDirection;
+
+    // If out of bounds, return 0
+    if (x < 0 || x >= 10 || y < 0 || y >= 10) return 0;
+
+    // Check first position
+    Checker* firstChecker = findCheckerAtPosition(x, y, listCheckers);
+
+    if (firstChecker) {
+        // First position is occupied
+        if (firstChecker->team == team) {
+            // Blocked by friendly piece
+            return 0;
         }
-        //Ensure that this checker can move in the input direction either because it's a king or based on the direction that it's team allows.
-        if ((team == Team::red && yDirection > 0) ||(team == Team::blue && yDirection < 0) ) {
-            int x = posX + xDirection;
-            int y = posY + yDirection;
+        else {
+            // Found opponent's piece - check if we can capture
+            int jumpX = x + xDirection;
+            int jumpY = y + yDirection;
 
-            //Ensure that the position is within the bounds of the game board (a square minus the four coners).
-            if (x > -1 && x < 10 && y > -1 && y < 10) {
+            // Check if the landing square is valid
+            if (jumpX >= 0 && jumpX < 10 && jumpY >= 0 && jumpY < 10 &&
+                !findCheckerAtPosition(jumpX, jumpY, listCheckers)) {
+                // Can capture - kings stop after capturing just like regular pieces
+                return 2;
+            }
+            return 0;
+        }
+    }
 
-                //Try to find another checker in the specified position and determine how far this checker can move based on that information.
-                Checker* checkerSelected = findCheckerAtPosition(x, y, listCheckers);
-                if (checkerSelected == nullptr)
-                    return 1;
+    // For kings, check how far we can move without capturing
+    if (isAKing) {
+        int maxDistance = 1; // We can at least move 1 square
 
-                else if (checkerSelected->team != team) {
-                    x = posX + xDirection * 2;
-                    y = posY + yDirection * 2;
+        // Continue checking empty squares along the diagonal
+        while (true) {
+            x += xDirection;
+            y += yDirection;
 
-                    if (x > -1 && x < 10 && y > -1 && y < 10 ) {
-                        checkerSelected = findCheckerAtPosition(x, y, listCheckers);
-                        if (checkerSelected == nullptr)
-                            return 2;
+            if (x < 0 || x >= 10 || y < 0 || y >= 10) break; // Check bounds
+
+            Checker* nextChecker = findCheckerAtPosition(x, y, listCheckers);
+            if (nextChecker) {
+                // Found a piece - if opponent's piece, check for capture
+                if (nextChecker->team != team) {
+                    int jumpX = x + xDirection;
+                    int jumpY = y + yDirection;
+
+                    // Check if we can capture
+                    if (jumpX >= 0 && jumpX < 10 && jumpY >= 0 && jumpY < 10 &&
+                        !findCheckerAtPosition(jumpX, jumpY, listCheckers)) {
+                        // Kings can capture but stop at the capturing position (jumpX, jumpY)
+                        // Return the distance to the capture landing position
+                        return maxDistance + 2; // +2 represents jumping over the opponent piece
+                    }
+                }
+                // Blocked by any piece (opponent with no capture or friendly)
+                break;
+            }
+
+            // Empty square - increase maximum distance
+            maxDistance++;
+        }
+
+        return maxDistance;
+    }
+    else {
+        // Regular pieces can only move 1 square without capturing
+        return 1;
+    }
+}
+
+bool Checker::canCaptureInAnyDirection(std::vector<Checker>& listCheckers) { //newly added
+    // Check all four diagonal directions for possible captures
+    for (int xDir : {-1, 1}) {
+        for (int yDir : {-1, 1}) {
+            // For regular pieces, only check forward directions
+            if (!isAKing &&
+                ((team == Team::red && yDir < 0) ||
+                    (team == Team::blue && yDir > 0))) {
+                continue;
+            }
+
+            // Check if there's an opponent's piece adjacent
+            int adjacentX = posX + xDir;
+            int adjacentY = posY + yDir;
+
+            if (adjacentX >= 0 && adjacentX < 10 && adjacentY >= 0 && adjacentY < 10) {
+                Checker* adjacentChecker = findCheckerAtPosition(adjacentX, adjacentY, listCheckers);
+
+                if (adjacentChecker && adjacentChecker->team != team) {
+                    // Check if the square beyond is empty
+                    int landingX = adjacentX + xDir;
+                    int landingY = adjacentY + yDir;
+
+                    if (landingX >= 0 && landingX < 10 && landingY >= 0 && landingY < 10 &&
+                        findCheckerAtPosition(landingX, landingY, listCheckers) == nullptr) {
+                        return true; // Can capture
                     }
                 }
             }
         }
     }
 
-    return 0;
+    return false; // No captures available
 }
 
 

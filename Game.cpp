@@ -94,36 +94,34 @@ void Game::processEvents(bool& running) {
 
 void Game::checkCheckersWithMouseInput(int x, int y) {
     if (x > -1 && x < 10 && y > -1 && y < 10) {
-        //If no checker is selected then try to find and select one at the input position.
-        //ตรวจสอบว่ามีหมากถูกเลือกอยู่หรือไม่
-        if ( (indexCheckerInPlay > -1 && indexCheckerInPlay < listCheckers.size())  == false) {
+        // If no checker is selected, try to find and select one at the input position
+        if (indexCheckerInPlay == -1) {
             for (int count = 0; count < listCheckers.size(); count++) {
                 Checker* checkerSelected = &listCheckers[count];
-                if (checkerSelected->getPosX() == x && checkerSelected->getPosY() == y &&checkerSelected->getTeam() == teamSelectedForGameplay) {
+                if (checkerSelected->getPosX() == x && checkerSelected->getPosY() == y &&
+                    checkerSelected->getTeam() == teamSelectedForGameplay) {
                     indexCheckerInPlay = count;
+                    break;  // Select the first valid piece
                 }
             }
         }
-        //ถ้ามีหมากที่ถูกเลือกแล้ว → ลองเดินหมาก
         else {
-            //Otherwise it means that a checker is selected so attempt to move it.
+            // Otherwise, a checker is selected, so attempt to move it.
             int indexCheckerErase = -1;
             int distanceMoved = listCheckers[indexCheckerInPlay].tryToMoveToPosition(x, y, listCheckers, indexCheckerErase, checkerInPlayCanOnlyMove2Squares);
 
-            //If a checker needs to be erased then erase is and update indexCheckerSelectedForGameplay.
-            // ถ้าหมากฝั่งตรงข้ามถูกกิน → ลบออกและอัปเดต indexCheckerSelectedForGameplay
-            // ถ้ากินหมากฝั่งตรงข้ามได้ → ลบออก
+            // If a checker needs to be erased (captured), do so
             if (indexCheckerErase > -1 && indexCheckerErase < listCheckers.size()) {
                 listCheckers.erase(listCheckers.begin() + indexCheckerErase);
-                if (indexCheckerInPlay > indexCheckerErase)
+                if (indexCheckerInPlay > indexCheckerErase) {
                     indexCheckerInPlay--;
+                }
             }
-			
-            
-            //Check how far the selected checker wants to move and attempt to do so.
+
+            // Process the move
             switch (distanceMoved) {
-            case 0: //
-                indexCheckerInPlay = -1;
+            case 0:
+                indexCheckerInPlay = -1;  // Deselect the checker after it captures or cannot move
                 if (checkerInPlayCanOnlyMove2Squares) {
                     checkerInPlayCanOnlyMove2Squares = false;
                     incrementTeamSelectedForGameplay();
@@ -131,27 +129,38 @@ void Game::checkCheckersWithMouseInput(int x, int y) {
                 break;
 
             case 1:
-                if (checkerInPlayCanOnlyMove2Squares == false) {
-                    indexCheckerInPlay = -1;
+                indexCheckerInPlay = -1;  // Deselect the checker after moving
+                incrementTeamSelectedForGameplay();
+                break;
+
+            case 2:
+                // After a capture, check if another capture is possible
+                if (indexCheckerInPlay > -1 && indexCheckerInPlay < listCheckers.size() &&
+                    listCheckers[indexCheckerInPlay].canCaptureInAnyDirection(listCheckers)) {
+                    // If the checker can capture again, keep it selected
+                    checkerInPlayCanOnlyMove2Squares = true;
+                }
+                else {
+                    indexCheckerInPlay = -1;  // Deselect after move
+                    checkerInPlayCanOnlyMove2Squares = false;
                     incrementTeamSelectedForGameplay();
                 }
                 break;
 
-            case 2:
-                //If it moved two squares then check to see if it can move two squares again.
+            default:
+                // For kings moving multiple squares
                 if (indexCheckerInPlay > -1 && indexCheckerInPlay < listCheckers.size() &&
-                    listCheckers[indexCheckerInPlay].checkHowFarCanMoveInAnyDirection(listCheckers) == 2) {
-                    //It can move two squares again so don't deselect it and make sure that if it moves again that it only moves two squares.
+                    listCheckers[indexCheckerInPlay].canCaptureInAnyDirection(listCheckers)) {
+                    // If the checker can capture again after moving, keep it selected
                     checkerInPlayCanOnlyMove2Squares = true;
                 }
                 else {
-                    indexCheckerInPlay = -1;
+                    indexCheckerInPlay = -1;  // Deselect after move
                     checkerInPlayCanOnlyMove2Squares = false;
                     incrementTeamSelectedForGameplay();
                 }
                 break;
             }
-
             checkWin();
         }
     }
