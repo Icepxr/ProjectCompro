@@ -82,7 +82,7 @@ void Game::processEvents(bool& running) {
         int offsetY = 192;
         int squareX = ((mouseX - offsetX) / squareSizePixels) ;
         int squareY = ((mouseY - offsetY) / squareSizePixels) ;
-       
+		cout << "Square X = " << squareX << " Square Y = " << squareY << endl;
 
 
         if (gameModeCurrent == GameMode::playing)
@@ -235,9 +235,20 @@ void Game::resetBoard() {
 	if (instant_king_Bluepoint % 2 == 0) {
 		instant_king_Bluepoint++;
 	}
+	int portal_pointX = rand() % 10;
+
+	int portal_pointY = rand() % 10;
+
+	while (((portal_pointX + portal_pointY)%2 !=0)  || (portal_pointY<3||portal_pointY>6) ||((portal_pointX==instant_king_Bluepoint&&portal_pointY==5)) || (portal_pointX == instant_king_Redpoint && portal_pointY == 4)) {
+		portal_pointX = rand() % 10;
+		portal_pointY = rand() % 10;
+	}
 
     std::cout << "point of instant red point king X = " << instant_king_Redpoint << std::endl; // 0 2 4 6 8
     std::cout << "point of instant blue point king X = " << instant_king_Bluepoint<< std::endl; //1 3 5 7 9
+    
+	std::cout << "point of portal X = " << portal_pointX << std::endl; // 0 2 4 6 8
+    std::cout << "point of portal Y = " << portal_pointY << std::endl; //1 3 5 7 9
     cout << "---------------------------------------" << endl;
 
     gameModeCurrent = GameMode::playing;
@@ -269,11 +280,17 @@ void Game::resetBoard() {
                             listCheckers.push_back(Checker(x, y, Checker::Team::Token_king_blue));
                         }
                     }
+
+                }
+                if (y > 1 && y < 8 || (portal_pointX!=instant_king_Bluepoint && portal_pointX!=instant_king_Redpoint)) {
+                    if (x == portal_pointX && y == portal_pointY) {
+                        listCheckers.push_back(Checker(x, y, Checker::Team::Portal));
+                    }
                 }
             }
 			
         }
-    }
+    }	
 
 }
 

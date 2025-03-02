@@ -12,7 +12,8 @@ public:
         red,
         blue,
         Token_king_red,
-        Token_king_blue
+        Token_king_blue,
+        Portal,
 
     };
 
@@ -25,7 +26,7 @@ public:
     int tryToMoveToPosition(int x, int y, std::vector<Checker>& listCheckers, int& indexCheckerErase, bool canOnlyMove2Squares);
     int getPosX();
     int getPosY();
-    void position_token_king(int posX, int posY, std::vector<Checker>& listCheckers);
+    void position_token(int posX, int posY, std::vector<Checker>& listCheckers);
 
     //void instant_king(int posX, int posY);
 
@@ -41,5 +42,5 @@ private:
 
 
     static SDL_Texture* textureRedKing, * textureRedRegular,
-        * textureBlueKing, * textureBlueRegular, * TokenR_instantKing, *TokenB_instantKing;
+        * textureBlueKing, * textureBlueRegular, * TokenR_instantKing, * TokenB_instantKing, * Portal;
 };
