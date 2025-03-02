@@ -1,2 +1,2 @@
 # Checker 
-# All People Are Nothing But Tools
+# All People Are Nothing Just A Tools (เบียวAYANOKOJI)
